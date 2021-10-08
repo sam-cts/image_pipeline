@@ -174,7 +174,6 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
   PointCloud2Ptr points_msg = boost::make_shared<PointCloud2>();
   points_msg->header = disp_msg->header;
   points_msg->height = 1;
-  points_msg->width  = mat.cols*mat.rows;
   points_msg->is_bigendian = false;
   points_msg->is_dense = true; // there may be invalid points <false>
 
@@ -206,7 +205,7 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*points_msg, "b");
 
   // get number of valid points 
-  // int valid_points = 0;
+  uint32_t valid_points = 0;
   for (int v = 0; v < mat.rows; ++v)
   {
     for (int u = 0; u < mat.cols; ++u)
@@ -220,10 +219,11 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
         ++iter_x;
         ++iter_y;
         ++iter_z;
+        valid_points=0;
       }
     }
   }
-
+  points_msg->width  = valid_points;
   // Fill in color
   namespace enc = sensor_msgs::image_encodings;
   const std::string& encoding = l_image_msg->encoding;
