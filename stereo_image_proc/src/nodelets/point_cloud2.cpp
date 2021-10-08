@@ -173,13 +173,30 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
   // Fill in new PointCloud2 message (2D image-like layout)
   PointCloud2Ptr points_msg = boost::make_shared<PointCloud2>();
   points_msg->header = disp_msg->header;
-  points_msg->height = mat.rows;
-  points_msg->width  = mat.cols;
+  points_msg->height = 1;
+  points_msg->width  = mat.cols*mat.rows;
   points_msg->is_bigendian = false;
-  points_msg->is_dense = false; // there may be invalid points
+  points_msg->is_dense = true; // there may be invalid points <false>
 
   sensor_msgs::PointCloud2Modifier pcd_modifier(*points_msg);
-  pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+
+  // if (!this->get("avoid_point_cloud_padding").as_bool()) {
+  //   // Data will be packed as (DC=don't care, each item is a float):
+  //   //   x, y, z, DC, rgb, DC, DC, DC
+  //   // Resulting step size: 32 bytes
+  //   
+  //   pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
+  // } else {
+  // Data will be packed as:
+  //   x, y, z, rgb
+  // Resulting step size: 16 bytes
+  pcd_modifier.setPointCloud2Fields(
+    4,
+    "x", 1, sensor_msgs::PointField::FLOAT32,
+    "y", 1, sensor_msgs::PointField::FLOAT32,
+    "z", 1, sensor_msgs::PointField::FLOAT32,
+    "rgb", 1, sensor_msgs::PointField::FLOAT32);
+  // }
 
   sensor_msgs::PointCloud2Iterator<float> iter_x(*points_msg, "x");
   sensor_msgs::PointCloud2Iterator<float> iter_y(*points_msg, "y");
@@ -188,10 +205,11 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(*points_msg, "g");
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*points_msg, "b");
 
-  float bad_point = std::numeric_limits<float>::quiet_NaN ();
+  // get number of valid points 
+  // int valid_points = 0;
   for (int v = 0; v < mat.rows; ++v)
   {
-    for (int u = 0; u < mat.cols; ++u, ++iter_x, ++iter_y, ++iter_z)
+    for (int u = 0; u < mat.cols; ++u)
     {
       if (isValidPoint(mat(v,u)))
       {
@@ -199,10 +217,9 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
         *iter_x = mat(v, u)[0];
         *iter_y = mat(v, u)[1];
         *iter_z = mat(v, u)[2];
-      }
-      else
-      {
-        *iter_x = *iter_y = *iter_z = bad_point;
+        ++iter_x;
+        ++iter_y;
+        ++iter_z;
       }
     }
   }
@@ -217,10 +234,16 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
                                   l_image_msg->step);
     for (int v = 0; v < mat.rows; ++v)
     {
-      for (int u = 0; u < mat.cols; ++u, ++iter_r, ++iter_g, ++iter_b)
+      for (int u = 0; u < mat.cols; ++u)
       {
-        uint8_t g = color(v,u);
-        *iter_r = *iter_g = *iter_b = g;
+        if (isValidPoint(mat(v,u)))
+        {
+          uint8_t g = color(v,u);
+          *iter_r = *iter_g = *iter_b = g;
+          ++iter_r;
+          ++iter_g;
+          ++iter_b;
+        }
       }
     }
   }
@@ -231,12 +254,18 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
                                     l_image_msg->step);
     for (int v = 0; v < mat.rows; ++v)
     {
-      for (int u = 0; u < mat.cols; ++u, ++iter_r, ++iter_g, ++iter_b)
+      for (int u = 0; u < mat.cols; ++u)
       {
-        const cv::Vec3b& rgb = color(v,u);
-        *iter_r = rgb[0];
-        *iter_g = rgb[1];
-        *iter_b = rgb[2];
+        if (isValidPoint(mat(v,u)))
+        {
+          const cv::Vec3b& rgb = color(v,u);
+          *iter_r = rgb[0];
+          *iter_g = rgb[1];
+          *iter_b = rgb[2];
+          ++iter_r;
+          ++iter_g;
+          ++iter_b;
+        }
       }
     }
   }
@@ -247,12 +276,18 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
                                     l_image_msg->step);
     for (int v = 0; v < mat.rows; ++v)
     {
-      for (int u = 0; u < mat.cols; ++u, ++iter_r, ++iter_g, ++iter_b)
+      for (int u = 0; u < mat.cols; ++u)
       {
-        const cv::Vec3b& bgr = color(v,u);
-        *iter_r = bgr[2];
-        *iter_g = bgr[1];
-        *iter_b = bgr[0];
+        if (isValidPoint(mat(v,u)))
+        {
+          const cv::Vec3b& bgr = color(v,u);
+          *iter_r = bgr[2];
+          *iter_g = bgr[1];
+          *iter_b = bgr[0];
+          ++iter_r;
+          ++iter_g;
+          ++iter_b;
+        }
       }
     }
   }
