@@ -219,7 +219,7 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
         ++iter_x;
         ++iter_y;
         ++iter_z;
-        valid_points=0;
+        ++valid_points;
       }
     }
   }
