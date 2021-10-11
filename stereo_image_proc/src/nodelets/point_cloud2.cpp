@@ -170,15 +170,34 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
   model_.projectDisparityImageTo3d(dmat, points_mat_, true);
   cv::Mat_<cv::Vec3f> mat = points_mat_;
 
+  // get number of valid points 
+  int valid_points = 0;
+  int max_size = mat.rows*mat.cols;
+  int *valid_rows = new int[max_size];
+  int *valid_cols = new int[max_size];
+  for (int v = 0; v < mat.rows; ++v)
+  {
+    for (int u = 0; u < mat.cols; ++u)
+    {
+      if (isValidPoint(mat(v,u)))
+      {
+        valid_rows[valid_points] = v;
+        valid_cols[valid_points] = u;
+        ++valid_points;
+      }
+    }
+  }
+  ROS_DEBUG("number of valid points: %d", valid_points);
+
   // Fill in new PointCloud2 message (2D image-like layout)
   PointCloud2Ptr points_msg = boost::make_shared<PointCloud2>();
   points_msg->header = disp_msg->header;
   points_msg->height = 1;
+  points_msg->width = valid_points;
   points_msg->is_bigendian = false;
   points_msg->is_dense = true; // there may be invalid points <false>
 
   sensor_msgs::PointCloud2Modifier pcd_modifier(*points_msg);
-
   // if (!this->get("avoid_point_cloud_padding").as_bool()) {
   //   // Data will be packed as (DC=don't care, each item is a float):
   //   //   x, y, z, DC, rgb, DC, DC, DC
@@ -203,28 +222,21 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_r(*points_msg, "r");
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_g(*points_msg, "g");
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_b(*points_msg, "b");
-
-  // get number of valid points 
-  uint32_t valid_points = 0;
-  for (int v = 0; v < mat.rows; ++v)
+  
+  ROS_DEBUG("first valid point: %d   %d", valid_rows[0], valid_cols[0]);
+  ROS_DEBUG("10th  valid point: %d   %d", valid_rows[9], valid_cols[9]);
+  ROS_DEBUG("last  valid point: %d   %d", valid_rows[valid_points-1], valid_cols[valid_points-1]);
+  ROS_DEBUG("processing valid points xyz");
+  // x,y,z
+  for (int i = 0; i < valid_points; ++i, ++iter_x, ++iter_y, ++iter_z)
   {
-    for (int u = 0; u < mat.cols; ++u)
-    {
-      if (isValidPoint(mat(v,u)))
-      {
-        // x,y,z
-        *iter_x = mat(v, u)[0];
-        *iter_y = mat(v, u)[1];
-        *iter_z = mat(v, u)[2];
-        ++iter_x;
-        ++iter_y;
-        ++iter_z;
-        ++valid_points;
-      }
-    }
+    *iter_x = mat(valid_rows[i], valid_cols[i])[0];
+    *iter_y = mat(valid_rows[i], valid_cols[i])[1];
+    *iter_z = mat(valid_rows[i], valid_cols[i])[2];
   }
-  points_msg->width  = valid_points;
+
   // Fill in color
+  ROS_DEBUG("filling color.");
   namespace enc = sensor_msgs::image_encodings;
   const std::string& encoding = l_image_msg->encoding;
   if (encoding == enc::MONO8)
@@ -242,8 +254,7 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
           *iter_r = *iter_g = *iter_b = g;
           ++iter_r;
           ++iter_g;
-          ++iter_b;
-        }
+          ++iter_b;        }
       }
     }
   }
