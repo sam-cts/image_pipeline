@@ -198,16 +198,6 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
   points_msg->is_dense = true; // there may be invalid points <false>
 
   sensor_msgs::PointCloud2Modifier pcd_modifier(*points_msg);
-  // if (!this->get("avoid_point_cloud_padding").as_bool()) {
-  //   // Data will be packed as (DC=don't care, each item is a float):
-  //   //   x, y, z, DC, rgb, DC, DC, DC
-  //   // Resulting step size: 32 bytes
-  //   
-  //   pcd_modifier.setPointCloud2FieldsByString(2, "xyz", "rgb");
-  // } else {
-  // Data will be packed as:
-  //   x, y, z, rgb
-  // Resulting step size: 16 bytes
   pcd_modifier.setPointCloud2Fields(
     4,
     "x", 1, sensor_msgs::PointField::FLOAT32,
@@ -244,18 +234,10 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
     const cv::Mat_<uint8_t> color(l_image_msg->height, l_image_msg->width,
                                   (uint8_t*)&l_image_msg->data[0],
                                   l_image_msg->step);
-    for (int v = 0; v < mat.rows; ++v)
+    for (int i = 0; i < valid_points; ++i, ++iter_r;, ++iter_g, ++iter_b) 
     {
-      for (int u = 0; u < mat.cols; ++u)
-      {
-        if (isValidPoint(mat(v,u)))
-        {
-          uint8_t g = color(v,u);
-          *iter_r = *iter_g = *iter_b = g;
-          ++iter_r;
-          ++iter_g;
-          ++iter_b;        }
-      }
+      uint8_t g = color(valid_rows[i], valid_cols[i]);
+      *iter_r = *iter_g = *iter_b = g;
     }
   }
   else if (encoding == enc::RGB8)
@@ -263,21 +245,12 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
     const cv::Mat_<cv::Vec3b> color(l_image_msg->height, l_image_msg->width,
                                     (cv::Vec3b*)&l_image_msg->data[0],
                                     l_image_msg->step);
-    for (int v = 0; v < mat.rows; ++v)
+    for (int i = 0; i < valid_points; ++i, ++iter_r;, ++iter_g, ++iter_b) 
     {
-      for (int u = 0; u < mat.cols; ++u)
-      {
-        if (isValidPoint(mat(v,u)))
-        {
-          const cv::Vec3b& rgb = color(v,u);
-          *iter_r = rgb[0];
-          *iter_g = rgb[1];
-          *iter_b = rgb[2];
-          ++iter_r;
-          ++iter_g;
-          ++iter_b;
-        }
-      }
+      const cv::Vec3b& rgb = color(valid_rows[i], valid_cols[i]);
+      *iter_r = rgb[0];
+      *iter_g = rgb[1];
+      *iter_b = rgb[2];
     }
   }
   else if (encoding == enc::BGR8)
@@ -285,21 +258,12 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
     const cv::Mat_<cv::Vec3b> color(l_image_msg->height, l_image_msg->width,
                                     (cv::Vec3b*)&l_image_msg->data[0],
                                     l_image_msg->step);
-    for (int v = 0; v < mat.rows; ++v)
+    for (int i = 0; i < valid_points; ++i, ++iter_r;, ++iter_g, ++iter_b) 
     {
-      for (int u = 0; u < mat.cols; ++u)
-      {
-        if (isValidPoint(mat(v,u)))
-        {
-          const cv::Vec3b& bgr = color(v,u);
-          *iter_r = bgr[2];
-          *iter_g = bgr[1];
-          *iter_b = bgr[0];
-          ++iter_r;
-          ++iter_g;
-          ++iter_b;
-        }
-      }
+      const cv::Vec3b& bgr = color(valid_rows[i], valid_cols[i]);
+      *iter_r = rgb[0];
+      *iter_g = rgb[1];
+      *iter_b = rgb[2];
     }
   }
   else
@@ -307,6 +271,8 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
     NODELET_WARN_THROTTLE(30, "Could not fill color channel of the point cloud, "
                           "unsupported encoding '%s'", encoding.c_str());
   }
+  delete [] valid_rows;
+  delete [] valid_cols;
 
   pub_points2_.publish(points_msg);
 }
