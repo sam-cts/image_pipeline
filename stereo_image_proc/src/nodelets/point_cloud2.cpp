@@ -142,7 +142,7 @@ void PointCloud2Nodelet::connectCb()
     ros::NodeHandle &nh = getNodeHandle();
     // Queue size 1 should be OK; the one that matters is the synchronizer queue size.
     image_transport::TransportHints hints("raw", ros::TransportHints(), getPrivateNodeHandle());
-    sub_l_image_  .subscribe(*it_, "left/image_rect_color", 1, hints);
+    sub_l_image_  .subscribe(*it_, "left/image_rect", 1, hints);
     sub_l_info_   .subscribe(nh,   "left/camera_info", 1);
     sub_r_info_   .subscribe(nh,   "right/camera_info", 1);
     sub_disparity_.subscribe(nh,   "disparity", 1);
@@ -234,7 +234,7 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
     const cv::Mat_<uint8_t> color(l_image_msg->height, l_image_msg->width,
                                   (uint8_t*)&l_image_msg->data[0],
                                   l_image_msg->step);
-    for (int i = 0; i < valid_points; ++i, ++iter_r;, ++iter_g, ++iter_b) 
+    for (int i = 0; i < valid_points; ++i, ++iter_r, ++iter_g, ++iter_b) 
     {
       uint8_t g = color(valid_rows[i], valid_cols[i]);
       *iter_r = *iter_g = *iter_b = g;
@@ -245,7 +245,7 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
     const cv::Mat_<cv::Vec3b> color(l_image_msg->height, l_image_msg->width,
                                     (cv::Vec3b*)&l_image_msg->data[0],
                                     l_image_msg->step);
-    for (int i = 0; i < valid_points; ++i, ++iter_r;, ++iter_g, ++iter_b) 
+    for (int i = 0; i < valid_points; ++i, ++iter_r, ++iter_g, ++iter_b) 
     {
       const cv::Vec3b& rgb = color(valid_rows[i], valid_cols[i]);
       *iter_r = rgb[0];
@@ -258,12 +258,12 @@ void PointCloud2Nodelet::imageCb(const ImageConstPtr& l_image_msg,
     const cv::Mat_<cv::Vec3b> color(l_image_msg->height, l_image_msg->width,
                                     (cv::Vec3b*)&l_image_msg->data[0],
                                     l_image_msg->step);
-    for (int i = 0; i < valid_points; ++i, ++iter_r;, ++iter_g, ++iter_b) 
+    for (int i = 0; i < valid_points; ++i, ++iter_r, ++iter_g, ++iter_b) 
     {
       const cv::Vec3b& bgr = color(valid_rows[i], valid_cols[i]);
-      *iter_r = rgb[0];
-      *iter_g = rgb[1];
-      *iter_b = rgb[2];
+      *iter_r = bgr[0];
+      *iter_g = bgr[1];
+      *iter_b = bgr[2];
     }
   }
   else
